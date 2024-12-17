@@ -1,0 +1,33 @@
+# Configuration file for photo backup application
+
+# Application version
+app:
+  version: "1.0.0"
+  supported_image_types: [".jpg", ".jpeg", ".png", ".JPG", ".JPG"]
+  source_dir: "./images"
+  destination_dir: "./backup"
+
+# Copy rules
+copy_rules:
+  overwrite_existing: false # Set to true to overwrite existing files
+  rename_conflicts: true # Set to true to rename files on conflict
+  #destination_path_format: f"{year}/{month}/{day}" # suported format:  {year}, {month}, {day}, {hour}, {minute}, {second}, {extension}
+  destination_path_format: "{year}/{month}/{year}-{month}-{day}" # suported format:  {year}, {month}, {day}, {hour}, {minute}, {second}, {extension}
+  destination_filename_format: "IMG_{year}{month}{day}_{hour}{minute}{second}.{extension}" # suported format: {originalfile}, {date}, {year}, {month}, {day}, {hour}, {minute}, {second}, {extension}
+
+# Database configuration
+database:
+  db_name: myphoto.db
+
+# Task configuration
+task:
+  sleep_time: 60 # Sleep time in seconds between checks
+
+# Logging configuration
+logging:
+  log_dir: "./logs"
+  log_level: "INFO" # Options: "ERROR", "WARNING", "INFO", "DEBUG"
+  log_format: "%(asctime)s [%(levelname)s] - %(name)s - %(message)s"
+  log_date_format: "%Y-%m-%d %H:%M:%S"
+  log_max_bytes: 10485670 # 10 MB
+  log_backup_count: 2
