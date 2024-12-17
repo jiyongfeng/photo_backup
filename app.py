@@ -5,7 +5,7 @@
 * @Author       : JIYONGFENG jiyongfeng@163.com
 * @Date         : 2024-05-21 11:33:40
  * @LastEditors  : JIYONGFENG jiyongfeng@163.com
- * @LastEditTime : 2024-12-17 11:04:22
+ * @LastEditTime : 2024-12-17 11:09:51
 * @Description  : 实现自动将照片备份到指定目录并重新命名
 * @Copyright (c) 2024 by ZEZEDATA Technology CO, LTD, All Rights Reserved.
 """
@@ -22,7 +22,6 @@ import time
 import uuid
 from datetime import datetime
 from logging.handlers import RotatingFileHandler
-from webbrowser import get
 
 import yaml
 from PIL import Image
