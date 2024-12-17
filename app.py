@@ -5,7 +5,7 @@
 * @Author       : JIYONGFENG jiyongfeng@163.com
 * @Date         : 2024-05-21 11:33:40
  * @LastEditors  : JIYONGFENG jiyongfeng@163.com
- * @LastEditTime : 2024-12-17 09:56:53
+ * @LastEditTime : 2024-12-17 10:37:59
 * @Description  : 实现自动将照片备份到指定目录并重新命名
 * @Copyright (c) 2024 by ZEZEDATA Technology CO, LTD, All Rights Reserved.
 """
@@ -22,6 +22,7 @@ import time
 import uuid
 from datetime import datetime
 from logging.handlers import RotatingFileHandler
+from webbrowser import get
 
 import yaml
 from PIL import Image
@@ -34,12 +35,11 @@ os.chdir(os.path.dirname(os.path.abspath(sys.argv[0])))
 with open("configuration.yaml", "r") as config_file:
     config = yaml.safe_load(config_file)
     sleep_time = config["task"]["sleep_time"]
-    task_duration = config["task"]["task_duration"]
     APP_VERSION = config["app"]["version"]
 
     destination_path_format = config["copy_rules"]["destination_path_format"]
     destination_filename_format = config["copy_rules"]["destination_filename_format"]
-    overwrite_existing = config["copy_rules"]["overwrite_existing"]
+    overwrite_existing_rule = config["copy_rules"]["overwrite_existing"]
     rename_conflicts = config["copy_rules"]["rename_conflicts"]
 
     # Database configuration
@@ -290,7 +290,24 @@ def copy_photos_with_exif(source_dir, destination_dir):
 
                 # check if file exists, due to the rule to overwrite or ignore
                 if os.path.exists(full_destination_path):
-                    if overwrite_existing:
+                    if overwrite_existing_rule and rename_conflicts:
+                        # 根据md5 判断是否重复
+                        if get_md5(file_path) != get_md5(full_destination_path):
+                            unique_name = generate_unique_filename(
+                                destination_path, destination_filename
+                            )
+                            full_destination_path = os.path.join(
+                                destination_dir, destination_path, unique_name
+                            )
+                        else:
+                            log_info(
+                                f"File {full_destination_path} already exists, skipping..."
+                            )
+                            continue
+                    elif overwrite_existing_rule:
+                        log_info(
+                            f"File {full_destination_path} already exists, overwriting..."
+                        )
                         os.remove(full_destination_path)
                     else:
                         log_info(
