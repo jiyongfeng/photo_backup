@@ -4,14 +4,19 @@
 app:
   version: "1.0.0"
   supported_image_types: [".jpg", ".jpeg", ".png", ".JPG", ".JPG"]
-  source_dir: "./images/1980/01/01"
-  destination_dir: "./backup"
+  supported_video_types: [".mp4", ".MP4", ".mov", ".MOV"]
+  source_image_dir: "./images/error4"
+  source_video_dir: "./images"
+  destination_image_dir: "./backup/images"
+  destination_video_dir: "./backup/videos"
 
 # Copy rules
 copy_rules:
   overwrite_existing_rule: false # Set to true to overwrite existing files
-  destination_path_format: "{year}/{month}/{year}-{month}-{day}" # suported format:  {year}, {month}, {day}, {hour}, {minute}, {second}, {extension}
-  destination_filename_format: "IMG_{year}{month}{day}_{hour}{minute}{second}.{extension}" # suported format: {originalfile}, {date}, {year}, {month}, {day}, {hour}, {minute}, {second}, {extension}
+  destination_image_path_format: "{year}/{month}/{year}-{month}-{day}" # suported format:  {year}, {month}, {day}, {hour}, {minute}, {second}, {extension}
+  destination_image_name_format: "IMG_{year}{month}{day}_{hour}{minute}{second}.{extension}" # suported format: {originalfile}, {date}, {year}, {month}, {day}, {hour}, {minute}, {second}, {extension}
+  destination_video_path_format: "{year}/{month}/{year}-{month}-{day}" # suported format:  {year}, {month}, {day}, {hour}, {minute}, {second}, {extension}
+  destination_video_name_format: "VID_{year}{month}{day}_{hour}{minute}{second}.{extension}" # suported format: {originalfile}, {date}, {year}, {month}, {day}, {hour}, {minute}, {second}, {extension}
 
 # Database configuration
 database:
@@ -19,7 +24,7 @@ database:
 
 # Task configuration
 task:
-  sleep_time: 60 # Sleep time in seconds between checks
+  sleep_time: 10 # Sleep time in seconds between checks
 
 # Logging configuration
 logging:
