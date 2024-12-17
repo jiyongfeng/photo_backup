@@ -5,7 +5,7 @@
 * @Author       : JIYONGFENG jiyongfeng@163.com
 * @Date         : 2024-05-21 11:33:40
  * @LastEditors  : JIYONGFENG jiyongfeng@163.com
- * @LastEditTime : 2024-12-17 10:37:59
+ * @LastEditTime : 2024-12-17 11:04:22
 * @Description  : 实现自动将照片备份到指定目录并重新命名
 * @Copyright (c) 2024 by ZEZEDATA Technology CO, LTD, All Rights Reserved.
 """
@@ -39,8 +39,7 @@ with open("configuration.yaml", "r") as config_file:
 
     destination_path_format = config["copy_rules"]["destination_path_format"]
     destination_filename_format = config["copy_rules"]["destination_filename_format"]
-    overwrite_existing_rule = config["copy_rules"]["overwrite_existing"]
-    rename_conflicts = config["copy_rules"]["rename_conflicts"]
+    overwrite_existing_rule = config["copy_rules"]["overwrite_existing_rule"]
 
     # Database configuration
     db_name = config["database"]["db_name"]
@@ -290,30 +289,35 @@ def copy_photos_with_exif(source_dir, destination_dir):
 
                 # check if file exists, due to the rule to overwrite or ignore
                 if os.path.exists(full_destination_path):
-                    if overwrite_existing_rule and rename_conflicts:
-                        # 根据md5 判断是否重复
-                        if get_md5(file_path) != get_md5(full_destination_path):
-                            unique_name = generate_unique_filename(
-                                destination_path, destination_filename
-                            )
-                            full_destination_path = os.path.join(
-                                destination_dir, destination_path, unique_name
-                            )
-                        else:
-                            log_info(
-                                f"File {full_destination_path} already exists, skipping..."
-                            )
-                            continue
-                    elif overwrite_existing_rule:
+                    # Check if the MD5 hashes are the same
+                    if get_md5(file_path) == get_md5(full_destination_path):
                         log_info(
-                            f"File {full_destination_path} already exists, overwriting..."
-                        )
-                        os.remove(full_destination_path)
-                    else:
-                        log_info(
-                            f"File {full_destination_path} already exists, skipping..."
+                            f"File {full_destination_path} already exists with the same content, skipping..."
                         )
                         continue
+
+                    # Generate a new filename if the content is different
+                    base_name, extension = os.path.splitext(destination_filename)
+                    new_full_destination_path = full_destination_path
+                    counter = 1
+
+                    # If overwrite rule is false, generate a new unique filename
+                    while os.path.exists(new_full_destination_path):
+                        if overwrite_existing_rule:
+                            log_info(
+                                f"File {full_destination_path} already exists, overwriting..."
+                            )
+                            os.remove(full_destination_path)
+                            break
+                        else:
+                            new_full_destination_path = os.path.join(
+                                destination_dir,
+                                destination_path,
+                                f"{base_name}({counter}){extension}",
+                            )
+                            counter += 1
+
+                    full_destination_path = new_full_destination_path
 
                 # Ensure the destination directory exists
                 destination_dir_path = os.path.join(destination_dir, destination_path)

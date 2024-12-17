@@ -4,14 +4,12 @@
 app:
   version: "1.0.0"
   supported_image_types: [".jpg", ".jpeg", ".png", ".JPG", ".JPG"]
-  source_dir: "./images"
+  source_dir: "./images/1980/01/01"
   destination_dir: "./backup"
 
 # Copy rules
 copy_rules:
-  overwrite_existing: false # Set to true to overwrite existing files
-  rename_conflicts: true # Set to true to rename files on conflict
-  #destination_path_format: f"{year}/{month}/{day}" # suported format:  {year}, {month}, {day}, {hour}, {minute}, {second}, {extension}
+  overwrite_existing_rule: false # Set to true to overwrite existing files
   destination_path_format: "{year}/{month}/{year}-{month}-{day}" # suported format:  {year}, {month}, {day}, {hour}, {minute}, {second}, {extension}
   destination_filename_format: "IMG_{year}{month}{day}_{hour}{minute}{second}.{extension}" # suported format: {originalfile}, {date}, {year}, {month}, {day}, {hour}, {minute}, {second}, {extension}
 
