@@ -170,3 +170,4 @@ cython_debug/
 # test_data
 backup/
 images/
+media.db

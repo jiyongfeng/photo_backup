@@ -5,7 +5,7 @@
 * @Author       : JIYONGFENG jiyongfeng@163.com
 * @Date         : 2024-12-19 13:41:57
  * @LastEditors  : JIYONGFENG jiyongfeng@163.com
- * @LastEditTime : 2024-12-19 16:42:12
+ * @LastEditTime : 2024-12-19 18:00:59
 * @Description  : utils
 * @Copyright (c) 2024 by ZEZEDATA Technology CO, LTD, All Rights Reserved.
 """
@@ -86,7 +86,8 @@ def get_date_from_filename(filename: str) -> Optional[str]:
                     f"Found date and time in filename {filename}: {filename_time}"
                 )
                 return filename_time
-            elif len(match.groups()) == 6:
+
+            elif len(match.groups()) == 5:
                 year = match.group(1)
                 month = match.group(3)
                 day = match.group(5)
@@ -94,11 +95,11 @@ def get_date_from_filename(filename: str) -> Optional[str]:
                 logger.debug(f"Found date in filename {filename}: {filename_time}")
                 return filename_time
             else:
-                logger.error("Unexpected number of groups in match: %s", match.groups())
+                logger.debug("Unexpected number of groups in match: %s", match.groups())
                 return None
-        else:
-            logger.info("No date or datetime found in filename: %s", filename)
-            return None
+
+    logger.debug("No date found in filename: %s", filename)
+    return None
 
 
 def get_file_creation_time(file_path: str) -> Optional[str]:

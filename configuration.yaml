@@ -12,17 +12,17 @@ app:
   # Path format supports: {year}, {month}, {day}
   image_destination_path_format: "{year}/{month}/{day}"
   # Filename format supports: {originalfile}, {year}, {month}, {day}, {hour}, {minute}, {second}, {extension}
-  image_destination_filename_format: "{year}{month}{day}_{hour}{minute}{second}.{extension}"
+  image_destination_filename_format: "IMG_{year}{month}{day}_{hour}{minute}{second}.{extension}"
 
   # Video settings
   supported_video_types: [".mp4", ".mov", ".avi", ".MP4", ".MOV"]
-  video_source_dir: "./images"
+  video_source_dir: "./videos"
   video_destination_dir: "./backup/videos"
   video_overwrite_existing_rule: false
   # Path format supports: {year}, {month}, {day}
   video_destination_path_format: "{year}/{month}/{day}"
   # Filename format supports: {originalfile}, {year}, {month}, {day}, {hour}, {minute}, {second}, {extension}
-  video_destination_filename_format: "{year}{month}{day}_{hour}{minute}{second}.{extension}"
+  video_destination_filename_format: "VID_{year}{month}{day}_{hour}{minute}{second}.{extension}"
 
 # Database configuration
 database:
@@ -35,7 +35,7 @@ task:
 # Logging configuration
 logging:
   log_dir: "./logs"
-  log_level: "INFO" # DEBUG, INFO, WARNING, ERROR, CRITICAL
+  log_level: "DEBUG" # DEBUG, INFO, WARNING, ERROR, CRITICAL
   log_format: "%(asctime)s [%(levelname)s] - %(name)s - %(message)s"
   log_date_format: "%Y-%m-%d %H:%M:%S"
   log_max_bytes: 10485670 # 10 MB
