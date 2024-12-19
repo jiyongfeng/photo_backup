@@ -1,36 +1,42 @@
-# Configuration file for photo backup application
+# Configuration file for media backup application
 
 # Application version
 app:
   version: "1.0.0"
-  supported_image_types: [".jpg", ".jpeg", ".png", ".JPG", ".JPG"]
-  supported_video_types: [".mp4", ".MP4", ".mov", ".MOV"]
-  source_image_dir: "./images/error4"
-  source_video_dir: "./images"
-  destination_image_dir: "./backup/images"
-  destination_video_dir: "./backup/videos"
 
-# Copy rules
-copy_rules:
-  overwrite_existing_rule: false # Set to true to overwrite existing files
-  destination_image_path_format: "{year}/{month}/{year}-{month}-{day}" # suported format:  {year}, {month}, {day}, {hour}, {minute}, {second}, {extension}
-  destination_image_name_format: "IMG_{year}{month}{day}_{hour}{minute}{second}.{extension}" # suported format: {originalfile}, {date}, {year}, {month}, {day}, {hour}, {minute}, {second}, {extension}
-  destination_video_path_format: "{year}/{month}/{year}-{month}-{day}" # suported format:  {year}, {month}, {day}, {hour}, {minute}, {second}, {extension}
-  destination_video_name_format: "VID_{year}{month}{day}_{hour}{minute}{second}.{extension}" # suported format: {originalfile}, {date}, {year}, {month}, {day}, {hour}, {minute}, {second}, {extension}
+  # Image settings
+  supported_image_types: [".jpg", ".jpeg", ".png", ".JPG", ".JPEG"]
+  image_source_dir: "./images"
+  image_destination_dir: "./backup/images"
+  image_overwrite_existing_rule: false
+  # Path format supports: {year}, {month}, {day}
+  image_destination_path_format: "{year}/{month}/{day}"
+  # Filename format supports: {originalfile}, {year}, {month}, {day}, {hour}, {minute}, {second}, {extension}
+  image_destination_filename_format: "{year}{month}{day}_{hour}{minute}{second}.{extension}"
+
+  # Video settings
+  supported_video_types: [".mp4", ".mov", ".avi", ".MP4", ".MOV"]
+  video_source_dir: "./images"
+  video_destination_dir: "./backup/videos"
+  video_overwrite_existing_rule: false
+  # Path format supports: {year}, {month}, {day}
+  video_destination_path_format: "{year}/{month}/{day}"
+  # Filename format supports: {originalfile}, {year}, {month}, {day}, {hour}, {minute}, {second}, {extension}
+  video_destination_filename_format: "{year}{month}{day}_{hour}{minute}{second}.{extension}"
 
 # Database configuration
 database:
-  db_name: myphoto.db
+  db_name: media.db
 
 # Task configuration
 task:
-  sleep_time: 10 # Sleep time in seconds between checks
+  sleep_time: 20 # Sleep time in seconds between checks
 
 # Logging configuration
 logging:
   log_dir: "./logs"
-  log_level: "INFO" # Options: "ERROR", "WARNING", "INFO", "DEBUG"
+  log_level: "INFO" # DEBUG, INFO, WARNING, ERROR, CRITICAL
   log_format: "%(asctime)s [%(levelname)s] - %(name)s - %(message)s"
   log_date_format: "%Y-%m-%d %H:%M:%S"
   log_max_bytes: 10485670 # 10 MB
-  log_backup_count: 2
+  log_backup_count: 5 # Number of log files to keep
