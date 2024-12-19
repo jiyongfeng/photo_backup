@@ -1,14 +1,19 @@
+#!/usr/bin/env python
+# coding=utf-8
+
 """
 * @Author       : JIYONGFENG jiyongfeng@163.com
-* @Date         : 2024-12-17 18:22:05
- * @LastEditors  : JIYONGFENG jiyongfeng@163.com
- * @LastEditTime : 2024-12-19 17:26:11
-* @Description  : main
+* @Date         : 2024-12-19 17:20:07
+* @LastEditors  : JIYONGFENG jiyongfeng@163.com
+* @LastEditTime : 2024-12-19 17:41:21
+* @Description  : main function
 * @Copyright (c) 2024 by ZEZEDATA Technology CO, LTD, All Rights Reserved.
 """
 
+import os
 import subprocess
 from datetime import datetime
+
 from config import config
 from core.logger import logger
 from core.photo_processor import PhotoProcessor
@@ -18,6 +23,9 @@ from core.video_processor import VideoProcessor
 
 def main():
     """Main execution flow."""
+
+    os.chdir(os.path.dirname(os.path.abspath(__file__)))
+
     logger.info(
         "App Version: %s - Run Timestamp: %s",
         config.app_version,
