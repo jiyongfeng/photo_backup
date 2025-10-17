@@ -2,7 +2,7 @@
  * @Author       : JIYONGFENG jiyongfeng@163.com
  * @Date         : 2024-12-16 14:26:54
  * @LastEditors  : JIYONGFENG jiyongfeng@163.com
- * @LastEditTime : 2024-12-17 09:54:53
+ * @LastEditTime : 2025-10-17 21:51:50
  * @Description  :
  * Copyright (c) 2024 by ZEZEDATA Technology CO, LTD, All Rights Reserved.
 -->
@@ -15,15 +15,20 @@ This application automatically backs up photos to a specified directory and rena
 
 ## Installation
 
-1. Clone the repository:
+1. Clone the repository:ß
+
    ```bash
    git clone https://github.com/jiyongfeng/photo_backup.git
    ```
+
 2. Navigate to the project directory:
+
    ```bash
    cd photo_backup
    ```
+
 3. Install required dependencies:
+
    ```bash
    pip install -r requirements.txt
    ```

@@ -12,19 +12,19 @@
 
 import os
 import shutil
+import sqlite3
 import time
 import uuid
-import sqlite3
 
 from config import config
-from core.logger import logger
 from core.database import db
+from core.logger import logger
 from core.utils import (
-    is_same_file,
-    get_date_from_filename,
-    get_file_creation_time,
     build_destination_path,
     generate_unique_filename,
+    get_date_from_filename,
+    get_file_creation_time,
+    is_same_file,
 )
 
 
@@ -71,7 +71,7 @@ class VideoProcessor:
                         logger.error("Error processing video %s: %s", file, str(e))
 
         logger.info(
-            "Video process completed. Total videos: %d, Copyed: %d, Skipped: %d, Errors: %d",
+            "Video process completed. Total videos: %d, Copied: %d, Skipped: %d, Errors: %d",
             self.file_count,
             self.copy_count,
             self.skip_count,
@@ -112,7 +112,7 @@ class VideoProcessor:
                     full_dest_path = f"{base}({counter}){ext}"
                     counter += 1
 
-                if not config.overwrite_existing_rule:
+                if not getattr(config, 'overwrite_existing_rule', False):
                     full_dest_path = generate_unique_filename(
                         self.dest_dir, dest_path, dest_filename
                     )
@@ -147,7 +147,7 @@ class VideoProcessor:
             if db.insert_photo(  # 使用相同的数据库表
                 str(uuid.uuid4()),
                 os.path.basename(source_path),
-                None,  # 视频没有EXIF数据
+                None,  # 视频没有 EXIF 数据
                 created_time,
                 time.ctime(os.path.getmtime(source_path)),
                 source_path,
