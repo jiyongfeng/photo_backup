@@ -15,6 +15,7 @@ import shutil
 import sqlite3
 import time
 import uuid
+from datetime import datetime
 from typing import Optional
 
 from photoarc.config import config
@@ -192,13 +193,33 @@ class VideoProcessor:
 
     def _get_video_creation_time(self, file_path: str) -> Optional[str]:
         """Get video creation time from filename or file metadata."""
-        # Try to get date from filename first
-        created_time = get_date_from_filename(os.path.basename(file_path))
-        if created_time:
-            return created_time
+        # Get both filename time and modification time
+        filename_time = get_date_from_filename(os.path.basename(file_path))
+        mod_time = get_file_modification_time(file_path)
 
-        # Fall back to file modification time
-        return get_file_modification_time(file_path)
+        # Return the earliest time
+        return self._get_earliest_time(filename_time, mod_time)
+
+    def _get_earliest_time(self, filename_time: Optional[str], mod_time: Optional[str]) -> Optional[str]:
+        """Get the earliest time between filename time and modification time."""
+        times = [t for t in [filename_time, mod_time] if t is not None]
+        if not times:
+            return None
+
+        # Convert to datetime objects for comparison
+        datetime_objects = []
+        for time_str in times:
+            try:
+                datetime_objects.append(datetime.fromisoformat(time_str))
+            except ValueError:
+                logger.warning("Invalid time format: %s", time_str)
+
+        if not datetime_objects:
+            return None
+
+        # Return the earliest time in ISO format
+        earliest = min(datetime_objects)
+        return earliest.isoformat()
 
     def _copy_and_record_file(
         self, source_path: str, dest_path: str, created_time: str

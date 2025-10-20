@@ -14,6 +14,7 @@ import os
 import shutil
 import time
 import uuid
+from datetime import datetime
 from typing import Any, Dict, Optional
 
 from photoarc.config import config
@@ -212,19 +213,47 @@ class PhotoProcessor:
                 exif_data = self._get_exif_data(img)
                 if exif_data and "DateTimeOriginal" in exif_data:
                     date_time = exif_data["DateTimeOriginal"].replace("\x00", "")
-                    return self._convert_to_iso_format(date_time)
+                    exif_time = self._convert_to_iso_format(date_time)
 
-            # Try to get date from filename
-            created_time = get_date_from_filename(os.path.basename(file_path))
-            if created_time:
-                return created_time
+                    # Also get filename time and modification time
+                    filename_time = get_date_from_filename(os.path.basename(file_path))
+                    mod_time = get_file_modification_time(file_path)
 
-            # Fall back to file modification time
-            return get_file_modification_time(file_path)
+                    # Return the earliest time among all available times
+                    return self._get_earliest_time(exif_time, filename_time, mod_time)
+
+            # Try to get date from filename and compare with modification time
+            filename_time = get_date_from_filename(os.path.basename(file_path))
+            mod_time = get_file_modification_time(file_path)
+
+            # Return the earliest time
+            return self._get_earliest_time(None, filename_time, mod_time)
 
         except Exception as e:
             logger.error("Error getting creation time for %s: %s", file_path, e)
-            return get_file_modification_time(file_path)  # Last fallback
+            # Fall back to file modification time
+            return get_file_modification_time(file_path)
+
+    def _get_earliest_time(self, exif_time: Optional[str], filename_time: Optional[str], mod_time: Optional[str]) -> Optional[str]:
+        """Get the earliest time among EXIF, filename, and modification times."""
+        times = [t for t in [exif_time, filename_time, mod_time] if t is not None]
+        if not times:
+            return None
+
+        # Convert to datetime objects for comparison
+        datetime_objects = []
+        for time_str in times:
+            try:
+                datetime_objects.append(datetime.fromisoformat(time_str))
+            except ValueError:
+                logger.warning("Invalid time format: %s", time_str)
+
+        if not datetime_objects:
+            return None
+
+        # Return the earliest time in ISO format
+        earliest = min(datetime_objects)
+        return earliest.isoformat()
 
     def _get_exif_data(self, image) -> Optional[Dict[Any, Any]]:
         """Extract EXIF data from image."""
