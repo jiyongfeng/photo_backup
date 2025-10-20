@@ -22,7 +22,7 @@ from photoarc.core.logger import logger
 from photoarc.core.utils import (
     build_destination_path,
     get_date_from_filename,
-    get_file_creation_time,
+    get_file_modification_time,
     is_same_file,
 )
 
@@ -204,8 +204,8 @@ class PhotoProcessor:
     def _get_photo_creation_time(self, file_path: str) -> Optional[str]:
         """Get photo creation time from EXIF data or filename."""
         if not PIL_AVAILABLE or Image is None:
-            # Fall back to file creation time if PIL is not available
-            return get_file_creation_time(file_path)
+            # Fall back to file modification time if PIL is not available
+            return get_file_modification_time(file_path)
 
         try:
             with Image.open(file_path) as img:
@@ -219,12 +219,12 @@ class PhotoProcessor:
             if created_time:
                 return created_time
 
-            # Fall back to file creation time
-            return get_file_creation_time(file_path)
+            # Fall back to file modification time
+            return get_file_modification_time(file_path)
 
         except Exception as e:
             logger.error("Error getting creation time for %s: %s", file_path, e)
-            return get_file_creation_time(file_path)  # Last fallback
+            return get_file_modification_time(file_path)  # Last fallback
 
     def _get_exif_data(self, image) -> Optional[Dict[Any, Any]]:
         """Extract EXIF data from image."""

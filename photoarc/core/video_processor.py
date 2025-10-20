@@ -23,7 +23,7 @@ from photoarc.core.logger import logger
 from photoarc.core.utils import (
     build_destination_path,
     get_date_from_filename,
-    get_file_creation_time,
+    get_file_modification_time,
     is_same_file,
 )
 
@@ -197,8 +197,8 @@ class VideoProcessor:
         if created_time:
             return created_time
 
-        # Fall back to file creation time
-        return get_file_creation_time(file_path)
+        # Fall back to file modification time
+        return get_file_modification_time(file_path)
 
     def _copy_and_record_file(
         self, source_path: str, dest_path: str, created_time: str

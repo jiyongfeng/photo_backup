@@ -102,9 +102,12 @@ def get_date_from_filename(filename: str) -> Optional[str]:
     return None
 
 
-def get_file_creation_time(file_path: str) -> Optional[str]:
+def get_file_modification_time(file_path: str) -> Optional[str]:
     """
-    Get file creation time from metadata.
+    Get file modification time from metadata.
+
+    On some systems, file creation time gets updated when copied,
+    but modification time remains the original value.
 
     Args:
         file_path: Path to the file
@@ -113,11 +116,13 @@ def get_file_creation_time(file_path: str) -> Optional[str]:
         str: ISO format date string, or None if error occurs
     """
     try:
-        creation_time = datetime.fromtimestamp(os.path.getctime(file_path)).isoformat()
-        logger.info(f"Getting file creation time for {file_path}: {creation_time}")
-        return creation_time
+        # Use modification time instead of creation time
+        # This ensures we get the original file creation time even after copying
+        modification_time = datetime.fromtimestamp(os.path.getmtime(file_path)).isoformat()
+        logger.info(f"Getting file modification time for {file_path}: {modification_time}")
+        return modification_time
     except Exception as e:
-        logger.error("Error getting file creation time for %s: %s", file_path, e)
+        logger.error("Error getting file modification time for %s: %s", file_path, e)
         return None
 
 
