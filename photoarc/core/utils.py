@@ -16,7 +16,7 @@ import re
 from datetime import datetime
 from typing import Optional, Tuple
 
-from core.logger import logger
+from photoarc.core.logger import logger
 
 
 def get_file_md5(file_path: str) -> Optional[str]:

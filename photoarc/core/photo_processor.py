@@ -16,10 +16,10 @@ import time
 import uuid
 from typing import Any, Dict, Optional
 
-from ..config import config
-from ..core.database import db
-from ..core.logger import logger
-from ..core.utils import (
+from photoarc.config import config
+from photoarc.core.database import db
+from photoarc.core.logger import logger
+from photoarc.core.utils import (
     build_destination_path,
     get_date_from_filename,
     get_file_creation_time,
@@ -54,15 +54,43 @@ class PhotoProcessor:
         self.source_dir = config.image_source_dir
         self.dest_dir = config.image_destination_dir
         self.supported_types = config.supported_image_types
+        self.exclude_dirs = config.exclude_directories  # 添加排除目录列表
         self.file_count = 0
         self.copy_count = 0
         self.skip_count = 0
         self.error_count = 0
         self.processed_files = set()  # Track processed files to support resume
 
+    def _is_excluded_directory(self, dir_path: str) -> bool:
+        """Check if a directory should be excluded from processing."""
+        # Convert to relative path from source directory
+        try:
+            rel_path = os.path.relpath(dir_path, self.source_dir)
+            # Handle the case where rel_path is '.' (source directory itself)
+            if rel_path == '.':
+                return False
+
+            # Check if any exclude pattern matches
+            for exclude_dir in self.exclude_dirs:
+                # Normalize paths for comparison
+                exclude_dir_normalized = os.path.normpath(exclude_dir)
+                rel_path_normalized = os.path.normpath(rel_path)
+
+                # Check for exact match or parent directory match
+                if (rel_path_normalized == exclude_dir_normalized or
+                    rel_path_normalized.startswith(exclude_dir_normalized + os.sep) or
+                    exclude_dir_normalized.startswith(rel_path_normalized + os.sep)):
+                    return True
+
+            return False
+        except ValueError:
+            # This can happen on different drives on Windows
+            return False
+
     def process_photos(self) -> None:
         """Process all photos in the source directory."""
         logger.info("Starting photo processing in directory: %s", self.source_dir)
+        logger.info("Excluded directories: %s", self.exclude_dirs)
         self.file_count = 0
         self.skip_count = 0
         self.copy_count = 0
@@ -73,6 +101,12 @@ class PhotoProcessor:
 
         # Process each subdirectory
         for root, dirs, files in os.walk(self.source_dir):
+            # Check if current directory should be excluded
+            if self._is_excluded_directory(root):
+                logger.info("Skipping excluded directory: %s", root)
+                dirs[:] = []  # Clear dirs to prevent walking into subdirectories
+                continue
+
             logger.info("Processing directory: %s", root)
             for file in files:
                 if file.lower().endswith(self.supported_types):

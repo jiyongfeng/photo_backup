@@ -2,8 +2,10 @@
   "cSpell.words": [
     "asctime",
     "EXIF",
+    "getexif",
     "levelname",
     "originalfile",
+    "photoarc",
     "ZEZEDATA"
   ],
   "python.analysis.typeCheckingMode": "off"

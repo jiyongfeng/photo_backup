@@ -63,6 +63,8 @@ class Config:
         self.log_date_format = ""
         self.log_max_bytes = 0
         self.log_backup_count = 0
+        # exclude directories
+        self.exclude_directories = []
 
         # CHANGED: 在 __init__ 内部调用 _load_config
         self._load_config()
@@ -74,14 +76,12 @@ class Config:
         """Load configuration from YAML file."""
         try:
             config_path = os.path.join(
-                os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
                 "configuration.yaml",
             )
             with open(config_path, "r", encoding="utf-8") as config_file:
                 config_data = yaml.safe_load(config_file)
 
             # 将配置项设置为实例属性
-            # CHANGED: 这里是“更新”值，而不是“定义”
             self.sleep_time = config_data["task"]["sleep_time"]
             self.app_version = config_data["app"]["version"]
             # image settings
@@ -125,6 +125,9 @@ class Config:
             self.log_date_format = config_data["logging"]["log_date_format"]
             self.log_max_bytes = config_data["logging"]["log_max_bytes"]
             self.log_backup_count = config_data["logging"]["log_backup_count"]
+
+            # exclude directories (default empty list)
+            self.exclude_directories = []
 
         except Exception as e:
             print(f"Error loading configuration: {e}")
