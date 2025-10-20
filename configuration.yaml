@@ -6,8 +6,8 @@ app:
 
   # Image settings
   supported_image_types: [".jpg", ".jpeg", ".png", ".JPG", ".JPEG"]
-  image_source_dir: "./images"
-  image_destination_dir: "./backup/images"
+  image_source_dir: "."
+  image_destination_dir: "./archive/image"
   image_overwrite_existing_rule: false
   # Path format supports: {year}, {month}, {day}
   image_destination_path_format: "{year}/{month}/{day}"
@@ -16,8 +16,8 @@ app:
 
   # Video settings
   supported_video_types: [".mp4", ".mov", ".avi", ".MP4", ".MOV"]
-  video_source_dir: "./videos"
-  video_destination_dir: "./backup/videos"
+  video_source_dir: "."
+  video_destination_dir: "./archive/video"
   video_overwrite_existing_rule: false
   # Path format supports: {year}, {month}, {day}
   video_destination_path_format: "{year}/{month}/{day}"

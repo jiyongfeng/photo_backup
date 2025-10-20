@@ -15,7 +15,7 @@ import os
 from datetime import datetime
 from logging.handlers import RotatingFileHandler
 
-from config import config
+from photoarc.config import config
 
 
 class Logger:

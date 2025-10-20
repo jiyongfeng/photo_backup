@@ -2,20 +2,31 @@
  * @Author       : JIYONGFENG jiyongfeng@163.com
  * @Date         : 2024-12-16 14:26:54
  * @LastEditors  : JIYONGFENG jiyongfeng@163.com
- * @LastEditTime : 2025-10-17 21:51:50
+ * @LastEditTime : 2025-10-20 11:18:42
  * @Description  :
  * Copyright (c) 2024 by ZEZEDATA Technology CO, LTD, All Rights Reserved.
 -->
 
-# Photo Backup Application
+# Photo Archive Application
 
 ## Description
 
-This application automatically backs up photos to a specified directory and renames them based on their metadata.
+This application automatically archives photos and videos to specified directories and renames them based on their metadata. It supports resuming interrupted operations and provides comprehensive logging.
+
+## Features
+
+- Archives both photos and videos
+- Extracts creation time from EXIF data, filename, or file metadata
+- Organizes files in a structured directory hierarchy (year/month/day)
+- Renames files with timestamp-based names
+- Avoids duplicates by checking file content
+- Supports resume capability for interrupted operations
+- Stores metadata in SQLite database for future querying
+- Comprehensive logging with rotation
 
 ## Installation
 
-1. Clone the repository:ß
+1. Clone the repository:
 
    ```bash
    git clone https://github.com/jiyongfeng/photo_backup.git
@@ -27,31 +38,90 @@ This application automatically backs up photos to a specified directory and rena
    cd photo_backup
    ```
 
-3. Install required dependencies:
+3. Create a virtual environment and install dependencies:
 
    ```bash
+   python3 -m venv venv
+   source venv/bin/activate
    pip install -r requirements.txt
    ```
 
 ## Usage
 
-Run the application using:
+### As a Module (Recommended)
+
+Run the application using the module syntax:
 
 ```bash
-python app.py
+python -m photoarc [--all] [--video] [--image] [--image_source PATH] [--video_source PATH] [--image_archive PATH] [--video_archive PATH] [--overwrite] [--resume]
+```
+
+Options:
+
+- `--all`: Process both images and videos (default)
+- `--video`: Process only videos
+- `--image`: Process only images
+- `--image_source`: Image source directory (default: current directory)
+- `--video_source`: Video source directory (default: current directory)
+- `--image_archive`: Image archive directory (default: ./archive/image)
+- `--video_archive`: Video archive directory (default: ./archive/video)
+- `--overwrite`: Overwrite existing files
+- `--resume`: Resume from last interrupted processing
+
+### Examples
+
+Process all media in the current directory:
+
+```bash
+python -m photoarc
+```
+
+Process only images from a specific directory:
+
+```bash
+python -m photoarc --image --image_source /path/to/photos
+```
+
+Process videos and save to a custom archive directory:
+
+```bash
+python -m photoarc --video --video_archive /path/to/my/videos
+```
+
+Resume interrupted processing:
+
+```bash
+python -m photoarc --resume
 ```
 
 ## Configuration
 
-The application uses a configuration file for settings. Key configurations include:
+The application uses a configuration file (`configuration.yaml`) for settings. Key configurations include:
 
-- `source_dir`: The directory where the photos are located.
-- `destination_dir`: The directory where the photos will be backed up.
-- Logging settings, including maximum file size and backup count.
+- Source directories for images and videos
+- Archive directories for images and videos
+- Supported file types
+- File naming and path formats
+- Database configuration
+- Logging settings
+
+## Database
+
+The application stores metadata in an SQLite database (`media.db`) with the following information:
+
+- File UUID
+- Original filename
+- File extension
+- EXIF data (for images)
+- Creation time
+- File size
+- Dimensions (for images)
+- Source and destination paths
+- Media type (image/video)
 
 ## Logging
 
-The application logs events to a file. The log file is rotated when it exceeds 10 MB, and a maximum of 2 backup files are kept.
+The application logs events to files in the `logs` directory. The log file is rotated when it exceeds 10 MB, and a maximum of 5 backup files are kept.
 
 ## Contributing
 

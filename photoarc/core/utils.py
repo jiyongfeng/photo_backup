@@ -10,9 +10,9 @@
 * @Copyright (c) 2024 by ZEZEDATA Technology CO, LTD, All Rights Reserved.
 """
 
+import hashlib
 import os
 import re
-import hashlib
 from datetime import datetime
 from typing import Optional, Tuple
 
@@ -53,7 +53,7 @@ def is_same_file(source_path: str, dest_path: str) -> bool:
     """
     source_md5 = get_file_md5(source_path)
     dest_md5 = get_file_md5(dest_path)
-    return source_md5 and dest_md5 and source_md5 == dest_md5
+    return bool(source_md5 and dest_md5 and source_md5 == dest_md5)
 
 
 def get_date_from_filename(filename: str) -> Optional[str]:
@@ -163,7 +163,7 @@ def build_destination_path(
 
 def generate_unique_filename(base_dir: str, dest_path: str, filename: str) -> str:
     """
-    Generate a unique filename by adding a counter.
+    Generate a unique filename by adding a counter in format file_001.extension.
 
     Args:
         base_dir: Base directory
@@ -175,12 +175,23 @@ def generate_unique_filename(base_dir: str, dest_path: str, filename: str) -> st
     """
     base_name, ext = os.path.splitext(filename)
     counter = 1
+
+    # Try format: filename_001.extension
     while True:
-        new_name = f"{base_name}({counter}){ext}"
+        new_name = f"{base_name}_{counter:03d}{ext}"
         full_path = os.path.join(base_dir, dest_path, new_name)
         if not os.path.exists(full_path):
             return full_path
         counter += 1
+
+        # Safety check to prevent infinite loop
+        if counter > 999:
+            # Fallback to UUID if counter exceeds limit
+            import uuid
+            new_name = f"{base_name}_{uuid.uuid4().hex[:8]}{ext}"
+            full_path = os.path.join(base_dir, dest_path, new_name)
+            if not os.path.exists(full_path):
+                return full_path
 
 
 def validate_directory(dir_path: str, dir_type: str) -> bool:

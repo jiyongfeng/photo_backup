@@ -1,3 +1,10 @@
 {
-  "cSpell.words": ["asctime", "EXIF", "levelname", "originalfile", "ZEZEDATA"]
+  "cSpell.words": [
+    "asctime",
+    "EXIF",
+    "levelname",
+    "originalfile",
+    "ZEZEDATA"
+  ],
+  "python.analysis.typeCheckingMode": "off"
 }

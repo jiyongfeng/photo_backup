@@ -14,20 +14,28 @@ import os
 import shutil
 import time
 import uuid
+from typing import Any, Dict, Optional
 
-from PIL import Image
-from PIL.ExifTags import TAGS
-
-from config import config
-from core.database import db
-from core.logger import logger
-from core.utils import (
+from ..config import config
+from ..core.database import db
+from ..core.logger import logger
+from ..core.utils import (
     build_destination_path,
-    generate_unique_filename,
     get_date_from_filename,
     get_file_creation_time,
     is_same_file,
 )
+
+# Try to import PIL modules
+try:
+    from PIL import Image
+    from PIL.ExifTags import TAGS
+    PIL_AVAILABLE = True
+except ImportError:
+    PIL_AVAILABLE = False
+    Image = None
+    TAGS = None
+    logger.warning("PIL not available, some features may be limited")
 
 
 class PhotoProcessor:
@@ -38,6 +46,7 @@ class PhotoProcessor:
     - Creation time determination
     - File naming and organization
     - Database recording
+    - Resume capability for interrupted processing
     """
 
     def __init__(self):
@@ -49,16 +58,33 @@ class PhotoProcessor:
         self.copy_count = 0
         self.skip_count = 0
         self.error_count = 0
+        self.processed_files = set()  # Track processed files to support resume
 
-    def process_photos(self):
+    def process_photos(self) -> None:
         """Process all photos in the source directory."""
+        logger.info("Starting photo processing in directory: %s", self.source_dir)
         self.file_count = 0
         self.skip_count = 0
         self.copy_count = 0
         self.error_count = 0
-        for root, _, files in os.walk(self.source_dir):
+
+        # Load previously processed files for resume capability
+        self._load_processed_files()
+
+        # Process each subdirectory
+        for root, dirs, files in os.walk(self.source_dir):
+            logger.info("Processing directory: %s", root)
             for file in files:
                 if file.lower().endswith(self.supported_types):
+                    file_path = os.path.join(root, file)
+
+                    # Skip if already processed (for resume capability)
+                    if file_path in self.processed_files:
+                        logger.debug("Skipping already processed file: %s", file_path)
+                        self.skip_count += 1
+                        self.file_count += 1
+                        continue
+
                     try:
                         result = self._process_single_photo(root, file)
                         self.file_count += 1
@@ -66,11 +92,14 @@ class PhotoProcessor:
                             self.skip_count += 1
                         elif result == "copied":
                             self.copy_count += 1
+                            # Add to processed files
+                            self.processed_files.add(file_path)
                         else:
                             self.error_count += 1
                     except Exception as e:
                         self.error_count += 1
                         logger.error("Error processing file %s: %s", file, str(e))
+            logger.info("Completed processing directory: %s", root)
 
         logger.info(
             "Image process completed. Total files: %d, Copied: %d, Skipped: %d, Errors: %d",
@@ -79,6 +108,16 @@ class PhotoProcessor:
             self.skip_count,
             self.error_count,
         )
+
+    def _load_processed_files(self) -> None:
+        """Load list of already processed files from database."""
+        try:
+            processed = db.get_processed_files(self.source_dir)
+            self.processed_files = {row[0] for row in processed}  # source_file_path
+            logger.info("Loaded %d previously processed files", len(self.processed_files))
+        except Exception as e:
+            logger.error("Error loading processed files: %s", e)
+            self.processed_files = set()
 
     def _process_single_photo(self, root: str, filename: str) -> str:
         """Process a single photo file."""
@@ -102,22 +141,21 @@ class PhotoProcessor:
 
             # Check for existing file
             if os.path.exists(full_dest_path):
-                base, ext = os.path.splitext(full_dest_path)
-                counter = 1
-                while os.path.exists(full_dest_path):
-                    if is_same_file(file_path, full_dest_path):
-                        logger.info(
-                            "File %s already exists with same content, skipping...",
-                            full_dest_path,
-                        )
-                        return "skipped"
-                    full_dest_path = f"{base}({counter}){ext}"
-                    counter += 1
+                if is_same_file(file_path, full_dest_path):
+                    logger.info(
+                        "File %s already exists with same content, skipping...",
+                        full_dest_path,
+                    )
+                    return "skipped"
 
                 if not config.image_overwrite_existing_rule:
-                    full_dest_path = generate_unique_filename(
-                        self.dest_dir, dest_path, dest_filename
-                    )
+                    # Generate unique filename with counter format
+                    base_name, ext = os.path.splitext(dest_filename)
+                    counter = 1
+                    while os.path.exists(full_dest_path):
+                        new_filename = f"{base_name}_{counter:03d}{ext}"
+                        full_dest_path = os.path.join(self.dest_dir, dest_path, new_filename)
+                        counter += 1
 
             # Ensure destination directory exists
             os.makedirs(os.path.dirname(full_dest_path), exist_ok=True)
@@ -129,8 +167,12 @@ class PhotoProcessor:
             logger.error("Error processing file %s: %s", file_path, e)
             return "error"
 
-    def _get_photo_creation_time(self, file_path: str) -> str:
+    def _get_photo_creation_time(self, file_path: str) -> Optional[str]:
         """Get photo creation time from EXIF data or filename."""
+        if not PIL_AVAILABLE or Image is None:
+            # Fall back to file creation time if PIL is not available
+            return get_file_creation_time(file_path)
+
         try:
             with Image.open(file_path) as img:
                 exif_data = self._get_exif_data(img)
@@ -148,10 +190,13 @@ class PhotoProcessor:
 
         except Exception as e:
             logger.error("Error getting creation time for %s: %s", file_path, e)
+            return get_file_creation_time(file_path)  # Last fallback
+
+    def _get_exif_data(self, image) -> Optional[Dict[Any, Any]]:
+        """Extract EXIF data from image."""
+        if not PIL_AVAILABLE or TAGS is None:
             return None
 
-    def _get_exif_data(self, image) -> dict:
-        """Extract EXIF data from image."""
         try:
             exif_data = image.getexif()
             if exif_data:
@@ -161,7 +206,7 @@ class PhotoProcessor:
             logger.error("Error extracting EXIF data: %s", e)
             return None
 
-    def _convert_to_iso_format(self, date_time_str: str) -> str:
+    def _convert_to_iso_format(self, date_time_str: str) -> Optional[str]:
         """Convert date time string to ISO format."""
         try:
             date_part, time_part = date_time_str.split(" ")
@@ -176,21 +221,40 @@ class PhotoProcessor:
     ) -> str:
         """Copy file and record in database."""
         try:
-            with Image.open(source_path) as img:
-                exif_data = self._get_exif_data(img)
-                shutil.copy2(source_path, dest_path)
+            exif_data = None
+            file_size = None
+            width = None
+            height = None
 
-                if db.insert_photo(
-                    str(uuid.uuid4()),
-                    os.path.basename(source_path),
-                    str(exif_data),
-                    created_time,
-                    time.ctime(os.path.getmtime(source_path)),
-                    source_path,
-                    dest_path,
-                ):
-                    logger.info("Copied %s to %s", source_path, dest_path)
-                    return "copied"
+            # Get file information
+            try:
+                file_size = os.path.getsize(source_path)
+            except OSError:
+                pass
+
+            if PIL_AVAILABLE and Image is not None:
+                with Image.open(source_path) as img:
+                    exif_data = self._get_exif_data(img)
+                    width, height = img.size
+
+            shutil.copy2(source_path, dest_path)
+
+            if db.insert_photo(
+                str(uuid.uuid4()),
+                os.path.basename(source_path),
+                str(exif_data) if exif_data else None,
+                created_time,
+                time.ctime(os.path.getmtime(source_path)),
+                source_path,
+                dest_path,
+                os.path.splitext(source_path)[1].lower(),
+                file_size,
+                width,
+                height,
+                "image"
+            ):
+                logger.info("Copied %s to %s", source_path, dest_path)
+                return "copied"
 
             return "error"
 

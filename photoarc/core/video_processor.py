@@ -15,13 +15,14 @@ import shutil
 import sqlite3
 import time
 import uuid
+from typing import Optional
 
-from config import config
 from core.database import db
 from core.logger import logger
+
+from config import config
 from core.utils import (
     build_destination_path,
-    generate_unique_filename,
     get_date_from_filename,
     get_file_creation_time,
     is_same_file,
@@ -35,6 +36,7 @@ class VideoProcessor:
     - Creation time determination from filename or file metadata
     - File naming and organization
     - Database recording
+    - Resume capability for interrupted processing
     """
 
     def __init__(self):
@@ -46,17 +48,33 @@ class VideoProcessor:
         self.copy_count = 0
         self.skip_count = 0
         self.error_count = 0
+        self.processed_files = set()  # Track processed files to support resume
 
-    def process_videos(self):
+    def process_videos(self) -> None:
         """Process all videos in the source directory."""
-
+        logger.info("Starting video processing in directory: %s", self.source_dir)
         self.file_count = 0
         self.copy_count = 0
         self.skip_count = 0
         self.error_count = 0
-        for root, _, files in os.walk(self.source_dir):
+
+        # Load previously processed files for resume capability
+        self._load_processed_files()
+
+        # Process each subdirectory
+        for root, dirs, files in os.walk(self.source_dir):
+            logger.info("Processing directory: %s", root)
             for file in files:
                 if file.lower().endswith(self.supported_types):
+                    file_path = os.path.join(root, file)
+
+                    # Skip if already processed (for resume capability)
+                    if file_path in self.processed_files:
+                        logger.debug("Skipping already processed file: %s", file_path)
+                        self.skip_count += 1
+                        self.file_count += 1
+                        continue
+
                     try:
                         result = self._process_single_video(root, file)
                         self.file_count += 1
@@ -64,11 +82,14 @@ class VideoProcessor:
                             self.skip_count += 1
                         elif result == "copied":
                             self.copy_count += 1
+                            # Add to processed files
+                            self.processed_files.add(file_path)
                         else:
                             self.error_count += 1
                     except (OSError, IOError, sqlite3.Error) as e:
                         self.error_count += 1
                         logger.error("Error processing video %s: %s", file, str(e))
+            logger.info("Completed processing directory: %s", root)
 
         logger.info(
             "Video process completed. Total videos: %d, Copied: %d, Skipped: %d, Errors: %d",
@@ -77,6 +98,16 @@ class VideoProcessor:
             self.skip_count,
             self.error_count,
         )
+
+    def _load_processed_files(self) -> None:
+        """Load list of already processed files from database."""
+        try:
+            processed = db.get_processed_files(self.source_dir)
+            self.processed_files = {row[0] for row in processed}  # source_file_path
+            logger.info("Loaded %d previously processed files", len(self.processed_files))
+        except Exception as e:
+            logger.error("Error loading processed files: %s", e)
+            self.processed_files = set()
 
     def _process_single_video(self, root: str, filename: str) -> str:
         """Process a single video file."""
@@ -100,22 +131,21 @@ class VideoProcessor:
 
             # Check for existing file
             if os.path.exists(full_dest_path):
-                base, ext = os.path.splitext(full_dest_path)
-                counter = 1
-                while os.path.exists(full_dest_path):
-                    if is_same_file(file_path, full_dest_path):
-                        logger.info(
-                            "File %s already exists with same content, skipping...",
-                            full_dest_path,
-                        )
-                        return "skipped"
-                    full_dest_path = f"{base}({counter}){ext}"
-                    counter += 1
-
-                if not getattr(config, 'overwrite_existing_rule', False):
-                    full_dest_path = generate_unique_filename(
-                        self.dest_dir, dest_path, dest_filename
+                if is_same_file(file_path, full_dest_path):
+                    logger.info(
+                        "File %s already exists with same content, skipping...",
+                        full_dest_path,
                     )
+                    return "skipped"
+
+                if not config.video_overwrite_existing_rule:
+                    # Generate unique filename with counter format
+                    base_name, ext = os.path.splitext(dest_filename)
+                    counter = 1
+                    while os.path.exists(full_dest_path):
+                        new_filename = f"{base_name}_{counter:03d}{ext}"
+                        full_dest_path = os.path.join(self.dest_dir, dest_path, new_filename)
+                        counter += 1
 
             # Ensure destination directory exists
             os.makedirs(os.path.dirname(full_dest_path), exist_ok=True)
@@ -127,7 +157,7 @@ class VideoProcessor:
             logger.error("Error processing file %s: %s", file_path, e)
             return "error"
 
-    def _get_video_creation_time(self, file_path: str) -> str:
+    def _get_video_creation_time(self, file_path: str) -> Optional[str]:
         """Get video creation time from filename or file metadata."""
         # Try to get date from filename first
         created_time = get_date_from_filename(os.path.basename(file_path))
@@ -142,6 +172,13 @@ class VideoProcessor:
     ) -> str:
         """Copy file and record in database."""
         try:
+            # Get file information
+            file_size = None
+            try:
+                file_size = os.path.getsize(source_path)
+            except OSError:
+                pass
+
             shutil.copy2(source_path, dest_path)
 
             if db.insert_photo(  # 使用相同的数据库表
@@ -152,6 +189,11 @@ class VideoProcessor:
                 time.ctime(os.path.getmtime(source_path)),
                 source_path,
                 dest_path,
+                os.path.splitext(source_path)[1].lower(),
+                file_size,
+                None,  # width
+                None,  # height
+                "video"
             ):
                 logger.info("Copied %s to %s", source_path, dest_path)
                 return "copied"
