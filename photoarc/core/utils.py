@@ -199,6 +199,78 @@ def generate_unique_filename(base_dir: str, dest_path: str, filename: str) -> st
                 return full_path
 
 
+def generate_unique_filename_with_content_check(base_dir: str, dest_path: str, filename: str, source_file_path: str) -> str:
+    """
+    Generate a unique filename by checking both filename and file content.
+
+    This function ensures that:
+    1. Files with the same MD5 hash will have the same destination file (no duplicates)
+    2. Files with different content but same target name will get numbered filenames
+
+    Args:
+        base_dir: Base directory
+        dest_path: Destination path
+        filename: Original filename
+        source_file_path: Path to the source file for content comparison
+
+    Returns:
+        str: Full path to unique filename
+    """
+    base_name, ext = os.path.splitext(filename)
+    counter = 1
+
+    # First check if the original filename exists
+    original_full_path = os.path.join(base_dir, dest_path, filename)
+
+    # If original filename doesn't exist, use it
+    if not os.path.exists(original_full_path):
+        return original_full_path
+
+    # If original file exists, check if it's the same content
+    if is_same_file(source_file_path, original_full_path):
+        # Same content, return the existing file path to avoid duplicates
+        return original_full_path
+
+    # Different content, generate a unique filename
+    while True:
+        new_name = f"{base_name}_{counter:03d}{ext}"
+        full_path = os.path.join(base_dir, dest_path, new_name)
+
+        # If this filename doesn't exist, use it
+        if not os.path.exists(full_path):
+            return full_path
+
+        # If it exists, check if it's the same content
+        if is_same_file(source_file_path, full_path):
+            # Same content, return the existing file path to avoid duplicates
+            return full_path
+
+        # Different content, try next counter
+        counter += 1
+
+        # Safety check to prevent infinite loop
+        if counter > 999:
+            # Fallback to UUID if counter exceeds limit
+            import uuid
+            new_name = f"{base_name}_{uuid.uuid4().hex[:8]}{ext}"
+            full_path = os.path.join(base_dir, dest_path, new_name)
+            if not os.path.exists(full_path):
+                return full_path
+
+
+def is_file_already_processed_by_path(dest_file_path: str) -> bool:
+    """
+    Check if a file has already been processed by checking if the destination file exists.
+
+    Args:
+        dest_file_path: Path to the destination file
+
+    Returns:
+        bool: True if file already exists, False otherwise
+    """
+    return os.path.exists(dest_file_path)
+
+
 def validate_directory(dir_path: str, dir_type: str) -> bool:
     """
     Validate directory existence and permissions.

@@ -22,8 +22,10 @@ from photoarc.core.database import db
 from photoarc.core.logger import logger
 from photoarc.core.utils import (
     build_destination_path,
+    generate_unique_filename_with_content_check,
     get_date_from_filename,
     get_file_modification_time,
+    is_file_already_processed_by_path,
     is_same_file,
 )
 
@@ -174,23 +176,29 @@ class PhotoProcessor:
             )
             full_dest_path = os.path.join(self.dest_dir, dest_path, dest_filename)
 
-            # Check for existing file
-            if os.path.exists(full_dest_path):
+            # Check if file is already processed by checking if destination file exists
+            # This is more reliable than checking database as it directly verifies file existence
+            if is_file_already_processed_by_path(full_dest_path):
+                # Check if it's the same file content
                 if is_same_file(file_path, full_dest_path):
                     logger.info(
                         "File %s already exists with same content, skipping...",
                         full_dest_path,
                     )
                     return "skipped"
-
-                if not config.image_overwrite_existing_rule:
-                    # Generate unique filename with counter format
-                    base_name, ext = os.path.splitext(dest_filename)
-                    counter = 1
-                    while os.path.exists(full_dest_path):
-                        new_filename = f"{base_name}_{counter:03d}{ext}"
-                        full_dest_path = os.path.join(self.dest_dir, dest_path, new_filename)
-                        counter += 1
+                else:
+                    # Different content, need to generate unique filename
+                    if not config.image_overwrite_existing_rule:
+                        # Generate unique filename with content check
+                        full_dest_path = generate_unique_filename_with_content_check(
+                            self.dest_dir, dest_path, dest_filename, file_path
+                        )
+                    else:
+                        # Overwrite existing file
+                        logger.info(
+                            "Overwriting existing file %s with different content",
+                            full_dest_path,
+                        )
 
             # Ensure destination directory exists
             os.makedirs(os.path.dirname(full_dest_path), exist_ok=True)
