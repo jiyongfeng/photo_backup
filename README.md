@@ -33,9 +33,7 @@ This application automatically archives photos and videos to specified directori
 3. Create a virtual environment and install dependencies:
 
    ```bash
-   python3 -m venv venv
-   source venv/bin/activate
-   pip install -r requirements.txt
+   uv sync
    ```
 
 ## Usage
@@ -45,7 +43,7 @@ This application automatically archives photos and videos to specified directori
 Run the application using the module syntax:
 
 ```bash
-python -m photoarc [--all] [--video] [--image] [--image_source PATH] [--video_source PATH] [--image_archive PATH] [--video_archive PATH] [--overwrite] [--resume] [--exclude DIR [DIR ...]]
+uv run -m photoarc [--all] [--video] [--image] [--image_source PATH] [--video_source PATH] [--image_archive PATH] [--video_archive PATH] [--overwrite] [--resume] [--exclude DIR [DIR ...]]
 ```
 
 Options:
@@ -66,37 +64,37 @@ Options:
 Process all media in the current directory:
 
 ```bash
-python -m photoarc
+uv run -m photoarc
 ```
 
 Process only images from a specific directory:
 
 ```bash
-python -m photoarc --image --image_source /path/to/photos
+uv run -m photoarc --image --image_source /path/to/photos
 ```
 
 Process videos and save to a custom archive directory:
 
 ```bash
-python -m photoarc --video --video_archive /path/to/my/videos
+uv run -m photoarc --video --video_archive /path/to/my/videos
 ```
 
 Resume interrupted processing:
 
 ```bash
-python -m photoarc --resume
+uv run -m photoarc --resume
 ```
 
 Exclude specific directories from processing:
 
 ```bash
-python -m photoarc --exclude temp unwanted_folder
+uv run -m photoarc --exclude temp unwanted_folder
 ```
 
 Exclude nested directories:
 
 ```bash
-python -m photoarc --exclude folder1/subfolder folder2/subfolder/deep
+uv run -m photoarc --exclude folder1/subfolder folder2/subfolder/deep
 ```
 
 ## Configuration
