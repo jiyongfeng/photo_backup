@@ -1,12 +1,3 @@
-<!--
- * @Author       : JIYONGFENG jiyongfeng@163.com
- * @Date         : 2024-12-16 14:26:54
- * @LastEditors  : JIYONGFENG jiyongfeng@163.com
- * @LastEditTime : 2025-10-20 11:18:42
- * @Description  :
- * Copyright (c) 2024 by ZEZEDATA Technology CO, LTD, All Rights Reserved.
--->
-
 # Photo Archive Application
 
 ## Description
@@ -21,6 +12,7 @@ This application automatically archives photos and videos to specified directori
 - Renames files with timestamp-based names
 - Avoids duplicates by checking file content
 - Supports resume capability for interrupted operations
+- Excludes specified directories from processing
 - Stores metadata in SQLite database for future querying
 - Comprehensive logging with rotation
 
@@ -53,7 +45,7 @@ This application automatically archives photos and videos to specified directori
 Run the application using the module syntax:
 
 ```bash
-python -m photoarc [--all] [--video] [--image] [--image_source PATH] [--video_source PATH] [--image_archive PATH] [--video_archive PATH] [--overwrite] [--resume]
+python -m photoarc [--all] [--video] [--image] [--image_source PATH] [--video_source PATH] [--image_archive PATH] [--video_archive PATH] [--overwrite] [--resume] [--exclude DIR [DIR ...]]
 ```
 
 Options:
@@ -67,6 +59,7 @@ Options:
 - `--video_archive`: Video archive directory (default: ./archive/video)
 - `--overwrite`: Overwrite existing files
 - `--resume`: Resume from last interrupted processing
+- `--exclude DIR [DIR ...]`: Exclude specified directories from processing
 
 ### Examples
 
@@ -92,6 +85,18 @@ Resume interrupted processing:
 
 ```bash
 python -m photoarc --resume
+```
+
+Exclude specific directories from processing:
+
+```bash
+python -m photoarc --exclude temp unwanted_folder
+```
+
+Exclude nested directories:
+
+```bash
+python -m photoarc --exclude folder1/subfolder folder2/subfolder/deep
 ```
 
 ## Configuration
