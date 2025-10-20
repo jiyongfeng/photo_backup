@@ -193,6 +193,15 @@ class PhotoProcessor:
                         full_dest_path = generate_unique_filename_with_content_check(
                             self.dest_dir, dest_path, dest_filename, file_path
                         )
+                        # After generating a new path, we need to check if this new path also exists
+                        # with the same content to avoid unnecessary copies
+                        if is_file_already_processed_by_path(full_dest_path):
+                            if is_same_file(file_path, full_dest_path):
+                                logger.info(
+                                    "File %s already exists with same content, skipping...",
+                                    full_dest_path,
+                                )
+                                return "skipped"
                     else:
                         # Overwrite existing file
                         logger.info(
