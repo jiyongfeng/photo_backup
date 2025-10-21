@@ -221,7 +221,7 @@ class PhotoProcessor:
             return "error"
 
     def _get_photo_modification_time(self, file_path: str) -> str | None:
-        """Get photo modification time from EXIF data or filename."""
+        """Get photo modification time, prioritizing EXIF data over filename and modification time."""
         if not pil_available or Image is None:
             # Fall back to file modification time if PIL is not available
             return get_file_modification_time(file_path)
@@ -229,28 +229,46 @@ class PhotoProcessor:
         try:
             with Image.open(file_path) as img:
                 exif_data = self._get_exif_data(img)
-                if exif_data and "DateTimeOriginal" in exif_data:
-                    date_time = exif_data["DateTimeOriginal"].replace("\x00", "")
-                    exif_time = self._convert_to_iso_format(date_time)
+                
+                # Priority 1: Try to get EXIF time (永远优先从EXIF读取)
+                if exif_data:
+                    exif_time = self._extract_exif_datetime(exif_data)
+                    if exif_time:
+                        logger.info("Using EXIF time for %s: %s", file_path, exif_time)
+                        return exif_time
 
-                    # Also get filename time and modification time
-                    filename_time = get_datetime_from_filename(os.path.basename(file_path))
-                    mod_time = get_file_modification_time(file_path)
-
-                    # Return the earliest time among all available times
-                    return self._get_earliest_time(exif_time, filename_time, mod_time)
-
-            # Try to get date from filename and compare with modification time
+            # Priority 2: Only if EXIF not available, use filename and modification time (最早时间)
+            logger.info("No EXIF time found for %s, falling back to filename/modification time", file_path)
             filename_time = get_datetime_from_filename(os.path.basename(file_path))
             mod_time = get_file_modification_time(file_path)
 
-            # Return the earliest time
+            # Return the earliest time between filename and modification time
             return self._get_earliest_time(None, filename_time, mod_time)
 
         except Exception as e:
             logger.error("Error getting modification time for %s: %s", file_path, e)
             # Fall back to file modification time
             return get_file_modification_time(file_path)
+
+    def _extract_exif_datetime(self, exif_data: dict) -> str | None:
+        """Extract datetime from EXIF data, trying multiple fields in priority order."""
+        # Priority order for EXIF datetime fields
+        exif_datetime_fields = [
+            "DateTimeOriginal",     # 拍摄时间 (最优先)
+            "DateTimeDigitized",    # 数字化时间 
+            "DateTime"              # 修改时间 (最后选择)
+        ]
+        
+        for field in exif_datetime_fields:
+            if field in exif_data:
+                date_time = str(exif_data[field]).replace("\x00", "").strip()
+                if date_time:
+                    converted_time = self._convert_to_iso_format(date_time)
+                    if converted_time:
+                        logger.info("Found EXIF %s: %s -> %s", field, date_time, converted_time)
+                        return converted_time
+        
+        return None
 
     def _get_earliest_time(self, exif_time: str | None, filename_time: str | None, mod_time: str | None) -> str | None:
         """Get the earliest time among EXIF, filename, and modification times."""

@@ -4,10 +4,12 @@
     "basedpyright",
     "EXIF",
     "getexif",
+    "homevideo",
     "JIYONGFENG",
     "levelname",
     "originalfile",
     "photoarc",
+    "venv",
     "ZEZEDATA"
   ],
   "python.analysis.typeCheckingMode": "off"

@@ -97,6 +97,26 @@ Exclude nested directories:
 uv run -m photoarc --exclude folder1/subfolder folder2/subfolder/deep
 ```
 
+### Synology NAS Usage
+
+1. 通过套件管理器安装 python3.13
+
+1. ssh 连接到 NAS，创建目录，并 git clone code
+1. 创建虚拟环境并安装 uv
+
+   ```bash
+   python3.13 -m venv .venv
+   pip install uv
+   ```
+
+1. 运行包
+
+   ```bash
+   # 参考Examples
+   # 为了确保拷贝不会涉及权限问题，建议sudo运行
+   sudo uv run -m photoarc --video --video_source /volume2/downloads/backup/homevideo --video_archive /volume1/video
+   ```
+
 ## Configuration
 
 The application uses a configuration file (`configuration.yaml`) for settings. Key configurations include:
