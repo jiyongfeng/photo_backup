@@ -350,10 +350,10 @@ class PhotoProcessor:
                     ):
                         exif_dict[tag] = str(value)
 
-                logger.info("=== 完整EXIF数据 ===")
+                logger.debug("=== 完整EXIF数据 ===")
                 for key, value in exif_dict.items():
-                    logger.info("EXIF %s: %s", key, value)
-                logger.info("=== EXIF数据结束 ===")
+                    logger.debug("EXIF %s: %s", key, value)
+                logger.debug("=== EXIF数据结束 ===")
 
                 return exif_dict
 
