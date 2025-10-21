@@ -11,7 +11,6 @@
 """
 
 import sqlite3
-from typing import Optional
 
 from photoarc.config import config
 from photoarc.core.logger import logger
@@ -71,15 +70,15 @@ class Database:
         self,
         uuid: str,
         filename: str,
-        exif_data: Optional[str],
+        exif_data: str | None,
         created_time: str,
         modified_time: str,
         source_path: str,
         dest_path: str,
-        file_extension: Optional[str] = None,
-        file_size: Optional[int] = None,
-        width: Optional[int] = None,
-        height: Optional[int] = None,
+        file_extension: str | None = None,
+        file_size: int | None = None,
+        width: int | None = None,
+        height: int | None = None,
         media_type: str = "image"
     ) -> bool:
         """Insert a new photo/video record into the database."""
@@ -117,15 +116,15 @@ class Database:
         self,
         uuid: str,
         filename: str,
-        exif_data: Optional[str],
+        exif_data: str | None,
         created_time: str,
         modified_time: str,
         source_path: str,
         dest_path: str,
-        file_extension: Optional[str] = None,
-        file_size: Optional[int] = None,
-        width: Optional[int] = None,
-        height: Optional[int] = None
+        file_extension: str | None = None,
+        file_size: int | None = None,
+        width: int | None = None,
+        height: int | None = None
     ) -> bool:
         """Insert a new video record into the database."""
         return self.insert_photo(
@@ -133,7 +132,7 @@ class Database:
             source_path, dest_path, file_extension, file_size, width, height, "video"
         )
 
-    def get_processed_files(self, source_dir: str) -> list:
+    def get_processed_files(self, source_dir: str) -> list[tuple[str, str]]:
         """Get list of already processed files from a source directory."""
         try:
             with sqlite3.connect(self.db_name) as conn:

@@ -10,6 +10,16 @@ dependencies = [
     "uuid>=1.30",
 ]
 
+[tool.basedpyright]
+reportExplicitAny = false
+reportUnknownMemberType = false
+reportUnknownParameterType = false
+reportUnknownArgumentType = false
+reportUnknownVariableType = false
+reportMissingParameterType = false
+reportUnannotatedClassAttribute = false
+reportAny = false
+reportUnusedCallResult = false
 
 [[tool.uv.index]]
 name = "tsinghua"
@@ -19,3 +29,8 @@ default = true
 [[tool.uv.index]]
 url = "https://mirrors.aliyun.com/pypi/simple/"
 default = true
+
+[dependency-groups]
+dev = [
+    "basedpyright>=1.31.7",
+]

@@ -16,7 +16,6 @@ import sqlite3
 import time
 import uuid
 from datetime import datetime
-from typing import Optional
 
 from photoarc.config import config
 from photoarc.core.database import db
@@ -24,7 +23,7 @@ from photoarc.core.logger import logger
 from photoarc.core.utils import (
     build_destination_path,
     generate_unique_filename_with_content_check,
-    get_date_from_filename,
+    get_datetime_from_filename,
     get_file_modification_time,
     is_file_already_processed_by_path,
     is_same_file,
@@ -151,14 +150,14 @@ class VideoProcessor:
 
         try:
             # Get video creation time
-            created_time = self._get_video_creation_time(file_path)
-            if not created_time:
+            modification = self._get_video_creation_time(file_path)
+            if not modification:
                 logger.error("Could not determine creation time for %s", file_path)
                 return "error"
 
             # Build destination path
             dest_path, dest_filename = build_destination_path(
-                created_time,
+                modification,
                 filename,
                 config.video_destination_path_format,
                 config.video_destination_filename_format,
@@ -202,26 +201,32 @@ class VideoProcessor:
             os.makedirs(os.path.dirname(full_dest_path), exist_ok=True)
 
             # Copy file and record in database
-            return self._copy_and_record_file(file_path, full_dest_path, created_time)
+            return self._copy_and_record_file(file_path, full_dest_path, modification)
 
         except (OSError, IOError, sqlite3.Error) as e:
             logger.error("Error processing file %s: %s", file_path, e)
             return "error"
 
-    def _get_video_creation_time(self, file_path: str) -> Optional[str]:
+    def _get_video_creation_time(self, file_path: str) -> str | None:
         """Get video creation time from filename or file metadata."""
         # Get both filename time and modification time
-        filename_time = get_date_from_filename(os.path.basename(file_path))
+        filename_time = get_datetime_from_filename(os.path.basename(file_path))
         mod_time = get_file_modification_time(file_path)
 
         # Return the earliest time
         return self._get_earliest_time(filename_time, mod_time)
 
-    def _get_earliest_time(self, filename_time: Optional[str], mod_time: Optional[str]) -> Optional[str]:
+    def _get_earliest_time(self, filename_time: str | None, mod_time: str | None) -> str | None:
         """Get the earliest time between filename time and modification time."""
         times = [t for t in [filename_time, mod_time] if t is not None]
         if not times:
             return None
+
+        # Special case: if filename_time is midnight (00:00:00), it might be inaccurate
+        # In this case, prefer modification time if available
+        if filename_time and mod_time and filename_time.endswith('T00:00:00'):
+            logger.info("Filename time is midnight, using file modification time instead")
+            return mod_time
 
         # Convert to datetime objects for comparison
         datetime_objects = []
@@ -239,7 +244,7 @@ class VideoProcessor:
         return earliest.isoformat()
 
     def _copy_and_record_file(
-        self, source_path: str, dest_path: str, created_time: str
+        self, source_path: str, dest_path: str, modification: str
     ) -> str:
         """Copy file and record in database."""
         try:
@@ -256,7 +261,7 @@ class VideoProcessor:
                 str(uuid.uuid4()),
                 os.path.basename(source_path),
                 None,  # 视频没有 EXIF 数据
-                created_time,
+                modification,
                 time.ctime(os.path.getmtime(source_path)),
                 source_path,
                 dest_path,

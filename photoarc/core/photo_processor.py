@@ -15,7 +15,7 @@ import shutil
 import time
 import uuid
 from datetime import datetime
-from typing import Any, Dict, Optional
+from typing import Any
 
 from photoarc.config import config
 from photoarc.core.database import db
@@ -23,7 +23,7 @@ from photoarc.core.logger import logger
 from photoarc.core.utils import (
     build_destination_path,
     generate_unique_filename_with_content_check,
-    get_date_from_filename,
+    get_datetime_from_filename,
     get_file_modification_time,
     is_file_already_processed_by_path,
     is_same_file,
@@ -33,11 +33,12 @@ from photoarc.core.utils import (
 try:
     from PIL import Image
     from PIL.ExifTags import TAGS
-    PIL_AVAILABLE = True
+    pil_available = True
+    tags_available = TAGS
 except ImportError:
-    PIL_AVAILABLE = False
+    pil_available = False
     Image = None
-    TAGS = None
+    tags_available = None
     logger.warning("PIL not available, some features may be limited")
 
 
@@ -46,7 +47,7 @@ class PhotoProcessor:
     Photo processing class that handles:
     - Photo file discovery and copying
     - EXIF data extraction
-    - Creation time determination
+    - modification time determination
     - File naming and organization
     - Database recording
     - Resume capability for interrupted processing
@@ -161,15 +162,15 @@ class PhotoProcessor:
         file_path = os.path.join(root, filename)
 
         try:
-            # Get photo creation time
-            created_time = self._get_photo_creation_time(file_path)
-            if not created_time:
-                logger.error("Could not determine creation time for %s", file_path)
+            # Get photo modification time
+            modification_time = self._get_photo_modification_time(file_path)
+            if not modification_time:
+                logger.error("Could not determine modification time for %s", file_path)
                 return "error"
 
             # Build destination path
             dest_path, dest_filename = build_destination_path(
-                created_time,
+                modification_time,
                 filename,
                 config.image_destination_path_format,
                 config.image_destination_filename_format,
@@ -213,15 +214,15 @@ class PhotoProcessor:
             os.makedirs(os.path.dirname(full_dest_path), exist_ok=True)
 
             # Copy file and record in database
-            return self._copy_and_record_file(file_path, full_dest_path, created_time)
+            return self._copy_and_record_file(file_path, full_dest_path, modification_time)
 
         except (OSError, IOError) as e:
             logger.error("Error processing file %s: %s", file_path, e)
             return "error"
 
-    def _get_photo_creation_time(self, file_path: str) -> Optional[str]:
-        """Get photo creation time from EXIF data or filename."""
-        if not PIL_AVAILABLE or Image is None:
+    def _get_photo_modification_time(self, file_path: str) -> str | None:
+        """Get photo modification time from EXIF data or filename."""
+        if not pil_available or Image is None:
             # Fall back to file modification time if PIL is not available
             return get_file_modification_time(file_path)
 
@@ -233,29 +234,37 @@ class PhotoProcessor:
                     exif_time = self._convert_to_iso_format(date_time)
 
                     # Also get filename time and modification time
-                    filename_time = get_date_from_filename(os.path.basename(file_path))
+                    filename_time = get_datetime_from_filename(os.path.basename(file_path))
                     mod_time = get_file_modification_time(file_path)
 
                     # Return the earliest time among all available times
                     return self._get_earliest_time(exif_time, filename_time, mod_time)
 
             # Try to get date from filename and compare with modification time
-            filename_time = get_date_from_filename(os.path.basename(file_path))
+            filename_time = get_datetime_from_filename(os.path.basename(file_path))
             mod_time = get_file_modification_time(file_path)
 
             # Return the earliest time
             return self._get_earliest_time(None, filename_time, mod_time)
 
         except Exception as e:
-            logger.error("Error getting creation time for %s: %s", file_path, e)
+            logger.error("Error getting modification time for %s: %s", file_path, e)
             # Fall back to file modification time
             return get_file_modification_time(file_path)
 
-    def _get_earliest_time(self, exif_time: Optional[str], filename_time: Optional[str], mod_time: Optional[str]) -> Optional[str]:
+    def _get_earliest_time(self, exif_time: str | None, filename_time: str | None, mod_time: str | None) -> str | None:
         """Get the earliest time among EXIF, filename, and modification times."""
         times = [t for t in [exif_time, filename_time, mod_time] if t is not None]
         if not times:
             return None
+
+        # Special case: if filename_time is midnight (00:00:00), it might be inaccurate
+        # In this case, prefer EXIF time or modification time if available
+        if filename_time and filename_time.endswith('T00:00:00'):
+            logger.info("Filename time is midnight, preferring EXIF or modification time")
+            non_filename_times = [t for t in [exif_time, mod_time] if t is not None]
+            if non_filename_times:
+                times = non_filename_times
 
         # Convert to datetime objects for comparison
         datetime_objects = []
@@ -272,21 +281,21 @@ class PhotoProcessor:
         earliest = min(datetime_objects)
         return earliest.isoformat()
 
-    def _get_exif_data(self, image) -> Optional[Dict[Any, Any]]:
+    def _get_exif_data(self, image) -> dict[Any, Any] | None:
         """Extract EXIF data from image."""
-        if not PIL_AVAILABLE or TAGS is None:
+        if not pil_available or tags_available is None:
             return None
 
         try:
             exif_data = image.getexif()
             if exif_data:
-                return {TAGS.get(tag, tag): value for tag, value in exif_data.items()}
+                return {tags_available.get(tag, tag): value for tag, value in exif_data.items()}
             return None
         except Exception as e:
             logger.error("Error extracting EXIF data: %s", e)
             return None
 
-    def _convert_to_iso_format(self, date_time_str: str) -> Optional[str]:
+    def _convert_to_iso_format(self, date_time_str: str) -> str | None:
         """Convert date time string to ISO format."""
         try:
             date_part, time_part = date_time_str.split(" ")
@@ -297,7 +306,7 @@ class PhotoProcessor:
             return None
 
     def _copy_and_record_file(
-        self, source_path: str, dest_path: str, created_time: str
+        self, source_path: str, dest_path: str, modification: str
     ) -> str:
         """Copy file and record in database."""
         try:
@@ -312,7 +321,7 @@ class PhotoProcessor:
             except OSError:
                 pass
 
-            if PIL_AVAILABLE and Image is not None:
+            if pil_available and Image is not None:
                 with Image.open(source_path) as img:
                     exif_data = self._get_exif_data(img)
                     width, height = img.size
@@ -323,7 +332,7 @@ class PhotoProcessor:
                 str(uuid.uuid4()),
                 os.path.basename(source_path),
                 str(exif_data) if exif_data else None,
-                created_time,
+                modification,
                 time.ctime(os.path.getmtime(source_path)),
                 source_path,
                 dest_path,

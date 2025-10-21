@@ -14,12 +14,11 @@ import hashlib
 import os
 import re
 from datetime import datetime
-from typing import Optional, Tuple
 
 from photoarc.core.logger import logger
 
 
-def get_file_md5(file_path: str) -> Optional[str]:
+def get_file_md5(file_path: str) -> str | None:
     """
     Calculate MD5 hash of a file.
 
@@ -56,7 +55,7 @@ def is_same_file(source_path: str, dest_path: str) -> bool:
     return bool(source_md5 and dest_md5 and source_md5 == dest_md5)
 
 
-def get_date_from_filename(filename: str) -> Optional[str]:
+def get_datetime_from_filename(filename: str) -> str | None:
     """
     Extract date from filename using various patterns.
 
@@ -102,7 +101,7 @@ def get_date_from_filename(filename: str) -> Optional[str]:
     return None
 
 
-def get_file_modification_time(file_path: str) -> Optional[str]:
+def get_file_modification_time(file_path: str) -> str | None:
     """
     Get file modification time from metadata.
 
@@ -127,13 +126,13 @@ def get_file_modification_time(file_path: str) -> Optional[str]:
 
 
 def build_destination_path(
-    created_time: str, original_filename: str, path_format: str, filename_format: str
-) -> Tuple[str, str]:
+    modification_time: str, original_filename: str, path_format: str, filename_format: str
+) -> tuple[str, str]:
     """
     Build destination path and filename based on creation time.
 
     Args:
-        created_time: ISO format date string
+        modification: ISO format date string
         original_filename: Original file name
         path_format: Format string for path
         filename_format: Format string for filename
@@ -141,7 +140,7 @@ def build_destination_path(
     Returns:
         tuple: (destination_path, destination_filename)
     """
-    dt = datetime.fromisoformat(created_time)
+    dt = datetime.fromisoformat(modification_time)
 
     # Format path
     path = path_format.format(
