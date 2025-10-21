@@ -26,7 +26,23 @@ from photoarc.core.video_processor import VideoProcessor
 
 def parse_arguments():
     """Parse command line arguments."""
-    parser = argparse.ArgumentParser(description="Photo Archive Tool")
+    parser = argparse.ArgumentParser(
+        description="Photo Archive Tool - Organizes photos and videos by date",
+        epilog="""
+Configuration file support:
+If command line arguments are not provided, default values will be loaded from configuration.yaml:
+  - image_source_dir: Source directory for images
+  - video_source_dir: Source directory for videos  
+  - image_destination_dir: Archive directory for images
+  - video_destination_dir: Archive directory for videos
+
+Examples:
+  python -m photoarc --image                           # Use config file defaults for images
+  python -m photoarc --all                             # Process all using config defaults
+  python -m photoarc --image --image_source ./photos   # Override image source
+        """,
+        formatter_class=argparse.RawDescriptionHelpFormatter
+    )
 
     # File type selection
     parser.add_argument(
@@ -36,12 +52,12 @@ def parse_arguments():
     parser.add_argument("--image", action="store_true", help="Process only images")
 
     # Source directories
-    parser.add_argument("--image_source", help="Image source directory")
-    parser.add_argument("--video_source", help="Video source directory")
+    parser.add_argument("--image_source", help="Image source directory (overrides config file)")
+    parser.add_argument("--video_source", help="Video source directory (overrides config file)")
 
     # Archive directories
-    parser.add_argument("--image_archive", help="Image archive directory")
-    parser.add_argument("--video_archive", help="Video archive directory")
+    parser.add_argument("--image_archive", help="Image archive directory (overrides config file)")
+    parser.add_argument("--video_archive", help="Video archive directory (overrides config file)")
 
     # Overwrite option
     parser.add_argument(
@@ -62,21 +78,30 @@ def parse_arguments():
 
 
 def set_default_values(args):
-    """Set default values for directories."""
-    # Get current directory (excluding logs directory)
+    """Set default values for directories using configuration file values."""
+    # Get current directory for relative path resolution
     current_dir = os.getcwd()
+    
+    # Convert relative paths from config to absolute paths
+    def resolve_path(path):
+        if not path:
+            return current_dir
+        if os.path.isabs(path):
+            return path
+        # Normalize path to remove redundant separators and up-level references
+        return os.path.normpath(os.path.join(current_dir, path))
 
-    # Set source directories
+    # Set source directories from config if not provided via command line
     if args.image_source is None:
-        args.image_source = current_dir
+        args.image_source = resolve_path(config.image_source_dir)
     if args.video_source is None:
-        args.video_source = current_dir
+        args.video_source = resolve_path(config.video_source_dir)
 
-    # Set archive directories
+    # Set archive directories from config if not provided via command line
     if args.image_archive is None:
-        args.image_archive = os.path.join(current_dir, "archive", "image")
+        args.image_archive = resolve_path(config.image_destination_dir)
     if args.video_archive is None:
-        args.video_archive = os.path.join(current_dir, "archive", "video")
+        args.video_archive = resolve_path(config.video_destination_dir)
 
     # Set file types to process
     if not args.all and not args.video and not args.image:
@@ -84,12 +109,16 @@ def set_default_values(args):
 
 
 def update_config_with_args(args):
-    """Update configuration with command line arguments."""
+    """Update configuration with command line arguments temporarily."""
+    # Store original values for restoration later if needed
+    # For now, we'll update config directly but this could be improved
+    # by passing args to processors instead
+    
     # Update source directories
     config.image_source_dir = args.image_source
     config.video_source_dir = args.video_source
 
-    # Update archive directories
+    # Update archive directories  
     config.image_destination_dir = args.image_archive
     config.video_destination_dir = args.video_archive
 
@@ -124,6 +153,7 @@ def main():
         args.video,
         args.image,
     )
+    logger.info("Processing configuration:")
     logger.info("Image source: %s", args.image_source)
     logger.info("Video source: %s", args.video_source)
     logger.info("Image archive: %s", args.image_archive)
@@ -131,6 +161,24 @@ def main():
     logger.info("Overwrite: %s", args.overwrite)
     logger.info("Resume: %s", args.resume)
     logger.info("Exclude directories: %s", config.exclude_directories)
+
+    # Display directory contents before processing
+    if args.all or args.image:
+        logger.info("Image source directory contents:")
+        try:
+            if os.path.exists(config.image_source_dir):
+                contents = os.listdir(config.image_source_dir)
+                logger.info("  Found %d items in %s", len(contents), config.image_source_dir)
+                for item in contents[:10]:  # Show first 10 items
+                    item_path = os.path.join(config.image_source_dir, item)
+                    item_type = "DIR" if os.path.isdir(item_path) else "FILE"
+                    logger.info("    [%s] %s", item_type, item)
+                if len(contents) > 10:
+                    logger.info("    ... and %d more items", len(contents) - 10)
+            else:
+                logger.warning("  Directory does not exist: %s", config.image_source_dir)
+        except Exception as e:
+            logger.warning("  Cannot list directory contents: %s", e)
 
     # Validate source directories
     if (args.all or args.image) and not validate_directory(

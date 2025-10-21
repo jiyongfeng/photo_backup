@@ -29,17 +29,24 @@ from photoarc.core.utils import (
     is_same_file,
 )
 
-# Try to import PIL modules
+# Check PIL availability for image dimension extraction only
 try:
     from PIL import Image
-    from PIL.ExifTags import TAGS
     pil_available = True
-    tags_available = TAGS
 except ImportError:
     pil_available = False
     Image = None
-    tags_available = None
-    logger.warning("PIL not available, some features may be limited")
+    logger.warning("PIL not available, image dimensions will not be extracted")
+
+# Check exifread availability for EXIF data extraction
+exifread_available = False
+exifread_module = None
+
+try:
+    import exifread as exifread_module
+    exifread_available = True
+except ImportError:
+    logger.warning("exifread not available, EXIF data extraction will be disabled")
 
 
 class PhotoProcessor:
@@ -71,7 +78,7 @@ class PhotoProcessor:
         try:
             rel_path = os.path.relpath(dir_path, self.source_dir)
             # Handle the case where rel_path is '.' (source directory itself)
-            if rel_path == '.':
+            if rel_path == ".":
                 return False
 
             # Check if any exclude pattern matches
@@ -81,9 +88,11 @@ class PhotoProcessor:
                 rel_path_normalized = os.path.normpath(rel_path)
 
                 # Check for exact match or parent directory match
-                if (rel_path_normalized == exclude_dir_normalized or
-                    rel_path_normalized.startswith(exclude_dir_normalized + os.sep) or
-                    exclude_dir_normalized.startswith(rel_path_normalized + os.sep)):
+                if (
+                    rel_path_normalized == exclude_dir_normalized
+                    or rel_path_normalized.startswith(exclude_dir_normalized + os.sep)
+                    or exclude_dir_normalized.startswith(rel_path_normalized + os.sep)
+                ):
                     return True
 
             return False
@@ -152,7 +161,9 @@ class PhotoProcessor:
         try:
             processed = db.get_processed_files(self.source_dir)
             self.processed_files = {row[0] for row in processed}  # source_file_path
-            logger.info("Loaded %d previously processed files", len(self.processed_files))
+            logger.info(
+                "Loaded %d previously processed files", len(self.processed_files)
+            )
         except Exception as e:
             logger.error("Error loading processed files: %s", e)
             self.processed_files = set()
@@ -214,7 +225,9 @@ class PhotoProcessor:
             os.makedirs(os.path.dirname(full_dest_path), exist_ok=True)
 
             # Copy file and record in database
-            return self._copy_and_record_file(file_path, full_dest_path, modification_time)
+            return self._copy_and_record_file(
+                file_path, full_dest_path, modification_time
+            )
 
         except (OSError, IOError) as e:
             logger.error("Error processing file %s: %s", file_path, e)
@@ -222,23 +235,29 @@ class PhotoProcessor:
 
     def _get_photo_modification_time(self, file_path: str) -> str | None:
         """Get photo modification time, prioritizing EXIF data over filename and modification time."""
-        if not pil_available or Image is None:
-            # Fall back to file modification time if PIL is not available
-            return get_file_modification_time(file_path)
+        if not exifread_available:
+            # Fall back to filename/modification time if exifread is not available
+            logger.info("exifread not available, using filename/modification time for %s", file_path)
+            filename_time = get_datetime_from_filename(os.path.basename(file_path))
+            mod_time = get_file_modification_time(file_path)
+            return self._get_earliest_time(None, filename_time, mod_time)
 
         try:
-            with Image.open(file_path) as img:
-                exif_data = self._get_exif_data(img)
-                
-                # Priority 1: Try to get EXIF time (永远优先从EXIF读取)
-                if exif_data:
-                    exif_time = self._extract_exif_datetime(exif_data)
-                    if exif_time:
-                        logger.info("Using EXIF time for %s: %s", file_path, exif_time)
-                        return exif_time
+            # Get EXIF data using exifread
+            exif_data = self._get_exif_data(file_path)
+
+            # Priority 1: Try to get EXIF time (永远优先从EXIF读取)
+            if exif_data:
+                exif_time = self._extract_exif_datetime(exif_data)
+                if exif_time:
+                    logger.info("Using EXIF time for %s: %s", file_path, exif_time)
+                    return exif_time
 
             # Priority 2: Only if EXIF not available, use filename and modification time (最早时间)
-            logger.info("No EXIF time found for %s, falling back to filename/modification time", file_path)
+            logger.info(
+                "No EXIF time found for %s, falling back to filename/modification time",
+                file_path,
+            )
             filename_time = get_datetime_from_filename(os.path.basename(file_path))
             mod_time = get_file_modification_time(file_path)
 
@@ -250,27 +269,31 @@ class PhotoProcessor:
             # Fall back to file modification time
             return get_file_modification_time(file_path)
 
-    def _extract_exif_datetime(self, exif_data: dict) -> str | None:
+    def _extract_exif_datetime(self, exif_data: dict[str, Any]) -> str | None:
         """Extract datetime from EXIF data, trying multiple fields in priority order."""
-        # Priority order for EXIF datetime fields
+        # Priority order for EXIF datetime fields (using exifread tag names)
         exif_datetime_fields = [
-            "DateTimeOriginal",     # 拍摄时间 (最优先)
-            "DateTimeDigitized",    # 数字化时间 
-            "DateTime"              # 修改时间 (最后选择)
+            "EXIF DateTimeOriginal",  # 拍摄时间 (最优先)
+            "EXIF DateTimeDigitized",  # 数字化时间
+            "Image DateTime",  # 修改时间 (最后选择)
         ]
-        
+
         for field in exif_datetime_fields:
             if field in exif_data:
                 date_time = str(exif_data[field]).replace("\x00", "").strip()
                 if date_time:
                     converted_time = self._convert_to_iso_format(date_time)
                     if converted_time:
-                        logger.info("Found EXIF %s: %s -> %s", field, date_time, converted_time)
+                        logger.info(
+                            "Found EXIF %s: %s -> %s", field, date_time, converted_time
+                        )
                         return converted_time
-        
+
         return None
 
-    def _get_earliest_time(self, exif_time: str | None, filename_time: str | None, mod_time: str | None) -> str | None:
+    def _get_earliest_time(
+        self, exif_time: str | None, filename_time: str | None, mod_time: str | None
+    ) -> str | None:
         """Get the earliest time among EXIF, filename, and modification times."""
         times = [t for t in [exif_time, filename_time, mod_time] if t is not None]
         if not times:
@@ -278,8 +301,10 @@ class PhotoProcessor:
 
         # Special case: if filename_time is midnight (00:00:00), it might be inaccurate
         # In this case, prefer EXIF time or modification time if available
-        if filename_time and filename_time.endswith('T00:00:00'):
-            logger.info("Filename time is midnight, preferring EXIF or modification time")
+        if filename_time and filename_time.endswith("T00:00:00"):
+            logger.info(
+                "Filename time is midnight, preferring EXIF or modification time"
+            )
             non_filename_times = [t for t in [exif_time, mod_time] if t is not None]
             if non_filename_times:
                 times = non_filename_times
@@ -299,18 +324,41 @@ class PhotoProcessor:
         earliest = min(datetime_objects)
         return earliest.isoformat()
 
-    def _get_exif_data(self, image) -> dict[Any, Any] | None:
-        """Extract EXIF data from image."""
-        if not pil_available or tags_available is None:
+    def _get_exif_data(self, file_path: str) -> dict[str, Any] | None:
+        """Extract EXIF data from image file using exifread library."""
+        if not exifread_available or exifread_module is None:
+            logger.debug("exifread not available, cannot extract EXIF data")
             return None
-
+            
         try:
-            exif_data = image.getexif()
-            if exif_data:
-                return {tags_available.get(tag, tag): value for tag, value in exif_data.items()}
-            return None
+            with open(file_path, 'rb') as f:
+                tags = exifread_module.process_file(f)
+
+                if not tags:
+                    logger.info("图片没有EXIF数据")
+                    return None
+
+                # Convert exifread tags to a simple dictionary
+                exif_dict = {}
+                for tag, value in tags.items():
+                    # Skip thumbnail data and maker notes as they are too large
+                    if tag not in (
+                        "JPEGThumbnail",
+                        "TIFFThumbnail",
+                        "Filename",
+                        "EXIF MakerNote",
+                    ):
+                        exif_dict[tag] = str(value)
+
+                logger.info("=== 完整EXIF数据 ===")
+                for key, value in exif_dict.items():
+                    logger.info("EXIF %s: %s", key, value)
+                logger.info("=== EXIF数据结束 ===")
+
+                return exif_dict
+
         except Exception as e:
-            logger.error("Error extracting EXIF data: %s", e)
+            logger.error("Error extracting EXIF data from %s: %s", file_path, e)
             return None
 
     def _convert_to_iso_format(self, date_time_str: str) -> str | None:
@@ -339,10 +387,16 @@ class PhotoProcessor:
             except OSError:
                 pass
 
+            # Get image dimensions using PIL if available
             if pil_available and Image is not None:
-                with Image.open(source_path) as img:
-                    exif_data = self._get_exif_data(img)
-                    width, height = img.size
+                try:
+                    with Image.open(source_path) as img:
+                        width, height = img.size
+                except Exception as e:
+                    logger.warning("Failed to get image dimensions for %s: %s", source_path, e)
+            
+            # Get EXIF data using exifread
+            exif_data = self._get_exif_data(source_path)
 
             shutil.copy2(source_path, dest_path)
 
@@ -358,7 +412,7 @@ class PhotoProcessor:
                 file_size,
                 width,
                 height,
-                "image"
+                "image",
             ):
                 logger.info("Copied %s to %s", source_path, dest_path)
                 return "copied"

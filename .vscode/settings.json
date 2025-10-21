@@ -3,6 +3,7 @@
     "asctime",
     "basedpyright",
     "EXIF",
+    "exifread",
     "getexif",
     "homevideo",
     "JIYONGFENG",
